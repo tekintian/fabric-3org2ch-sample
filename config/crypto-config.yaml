@@ -1,0 +1,31 @@
+# 构造一个包含3个机构的Hyperledger Fabric网络：Org1、Org2和Org3， 
+# 每个机构中包含一个节点Peer0。网络包含两个通道：由Org1、 Org2和Org3组成的ChannelAll，以及由Org1和Org2组成的Channel12
+OrdererOrgs:
+  - Name: Orderer
+    Domain: example.com
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+
+PeerOrgs:
+  - Name: Org1
+    Domain: org1.example.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+  - Name: Org2
+    Domain: org2.example.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+  - Name: Org3
+    Domain: org3.example.com
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1

@@ -1,0 +1,136 @@
+# Copyright IBM Corp. All Rights Reserved.
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+version: '2'
+
+volumes:
+  orderer.example.com:
+  peer0.org1.example.com:
+  peer0.org2.example.com:
+  peer0.org3.example.com:
+
+# 创建网络并指定子网
+networks:
+  byfn:
+    name: byfn
+    ipam:
+      config:
+        - subnet: 172.19.0.0/16
+
+services:
+  # 定义服务
+#################### orderer service 172.19.1.x ##################
+  orderer.example.com:
+    extends:
+      file:   base/docker-compose-base.yaml
+      service: orderer.example.com
+    container_name: orderer.example.com
+    networks:
+      byfn:
+        ipv4_address: 172.19.1.88
+
+################### peer service 172.19.2.x ##################
+  # 
+  # peer0 org1  172.19.2.10
+  # 
+  peer0.org1.example.com:
+    container_name: peer0.org1.example.com
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.org1.example.com
+    networks:
+      byfn:
+        ipv4_address: 172.19.2.10
+  # 
+  # peer0 org2  172.19.2.20
+  # 
+  peer0.org2.example.com:
+    container_name: peer0.org2.example.com
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.org2.example.com
+    networks:
+      byfn:
+        ipv4_address: 172.19.2.20
+  # 
+  # peer0 org3  172.19.2.30
+  # 
+  peer0.org3.example.com:
+    container_name: peer0.org3.example.com
+    extends:
+      file:  base/docker-compose-base.yaml
+      service: peer0.org3.example.com
+    networks:
+      byfn:
+        ipv4_address: 172.19.2.30
+
+############################# cli service ##################
+  # 
+  # cli  172.19.0.8
+  # 这个服务负责同网络中的其他节点进行联系
+  # 
+  cli:
+    container_name: cli
+    # 这里的镜像版本通过当前目录下的.env文件来定义变量
+    image: hyperledger/fabric-tools:${FABRIC_VERSION}
+    tty: true
+    stdin_open: true
+    environment:
+      - TZ=PRC
+      - GOPROXY="https://goproxy.cn,https://goproxy.io,direct"
+      - GOPATH=${GOPATH}
+      - CORE_VM_ENDPOINT=unix:///host/var/run/docker.sock
+      #- FABRIC_LOGGING_SPEC=DEBUG
+      - FABRIC_LOGGING_SPEC=INFO
+      - CORE_PEER_ID=cli
+      - CORE_PEER_ADDRESS=peer0.org1.example.com:7051
+      - CORE_PEER_LOCALMSPID=Org1MSP
+      - CORE_PEER_TLS_ENABLED=true
+      # 自定义配置信息
+      - CRYPTO_DIR=${CRYPTO_DIR}
+      - FABRIC_ROOT=${FABRIC_ROOT}
+      - ORDERER_CA=${ORDERER_CA}
+      #
+      - CORE_PEER_TLS_CERT_FILE=${CRYPTO_DIR}/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.crt
+      - CORE_PEER_TLS_KEY_FILE=${CRYPTO_DIR}/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/server.key
+      - CORE_PEER_TLS_ROOTCERT_FILE=${CRYPTO_DIR}/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
+      - CORE_PEER_MSPCONFIGPATH=${CRYPTO_DIR}/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp
+    working_dir: ${FABRIC_ROOT}/peer
+    command: /bin/sh
+    volumes:
+        - /var/run/docker.sock:/host/var/run/docker.sock
+        - ./chaincode/:${GOPATH}/src/github.com/chaincode
+        - ./config/crypto:${CRYPTO_DIR}/
+        - ./scripts:${FABRIC_ROOT}/peer/scripts/
+        - ./channel-artifacts:${FABRIC_ROOT}/peer/channel-artifacts
+    depends_on:
+      - orderer.example.com
+      - peer0.org1.example.com
+      - peer0.org2.example.com
+      - peer0.org3.example.com
+    networks:
+      byfn:
+        ipv4_address: 172.19.0.8
+
+############################# CouchDB ##################
+  # couchdb
+  # https://hub.docker.com/_/couchdb
+  # 172.19.0.5
+  couchdb:
+    container_name: couchdb
+    image: couchdb:2
+    # Populate the COUCHDB_USER and COUCHDB_PASSWORD to set an admin user and password
+    # for CouchDB.  This will prevent CouchDB from operating in an "Admin Party" mode.
+    environment:
+      - TZ=PRC
+      - COUCHDB_USER=fabric
+      - COUCHDB_PASSWORD=fabric888
+    # Comment/Uncomment the port mapping if you want to hide/expose the CouchDB service,
+    # for example map it to utilize Fauxton User Interface in dev environments.
+    ports:
+      - "5984:5984"
+    networks:
+      byfn:
+        ipv4_address: 172.19.0.5
